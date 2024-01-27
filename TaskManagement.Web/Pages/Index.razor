@@ -1,0 +1,165 @@
+﻿@inject TaskService TaskService
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+@inject ILogger<Index> Logger
+
+@page "/"
+
+<h1>Tasks</h1>
+
+<div class="d-flex flex-row-reverse">
+    <MudButton OnClick="CreateTask" Variant="Variant.Filled" Size="Size.Medium" Color="Color.Primary">Create</MudButton>
+</div>
+
+<MudTable Class="mt-3" Items="@_tasks" Hover="true" Loading="@_loading" LoadingProgressColor="Color.Info">
+    <HeaderContent>
+        <MudTh>Nr</MudTh>
+        <MudTh>Title</MudTh>
+        <MudTh>Description</MudTh>
+        <MudTh>Due Date</MudTh>
+        <MudTh>Priority</MudTh>
+        <MudTh>Status</MudTh>
+        <MudTh>Notes</MudTh>
+        <MudTh>Created At</MudTh>
+        <MudTh>Updated At</MudTh>
+        <MudTh>Actions</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="Nr">@context.No</MudTd>
+        <MudTd DataLabel="Title">@context.Task.Title</MudTd>
+        <MudTd DataLabel="Description">@context.Task.Description</MudTd>
+        <MudTd DataLabel="Due Date">@context.Task.DueDate?.ToString("yyyy-MM-dd")</MudTd>
+        <MudTd DataLabel="Priority">@context.Task.TaskPriority.ToString()</MudTd>
+        <MudTd DataLabel="Status">@context.Task.Status.ToString()</MudTd>
+        <MudTd DataLabel="Notes">@context.Task.Note</MudTd>
+        <MudTd DataLabel="Created At">@context.Task.CreatedAt.ToString("s")</MudTd>
+        <MudTd DataLabel="Updated At">@context.Task.UpdatedAt?.ToString("s")</MudTd>
+        <MudTd>
+            <MudIconButton OnClick="async () => await OpenEditDialog(context.Task)"
+                           Icon="@Icons.Material.Filled.Edit"
+                           Size="Size.Small"
+                           DisableRipple="true"/>
+
+            <MudIconButton OnClick="async () => await DeleteTask(context.Task)"
+                           Icon="@Icons.Material.Filled.Delete"
+                           Color="Color.Error"
+                           Size="Size.Small"
+                           DisableRipple="true"/>
+        </MudTd>
+    </RowTemplate>
+    
+    <PagerContent>
+        <MudTablePager />
+    </PagerContent>
+    
+</MudTable>
+
+@code{
+    private List<TaskViewModel> _tasks = new List<TaskViewModel>();
+    private bool _loading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _loading = true;
+
+        await GetTasks();
+
+        _loading = false;
+    }
+
+    private async Task GetTasks()
+    {
+        try
+        {
+            var tasks = await TaskService.GetAllTasksAsync();
+
+            _tasks = Numerator.Numerate(tasks);
+        }
+        catch (Exception e)
+        {
+            Logger.LogError(e, "Something went wrong");
+            Snackbar.Add("Something went wrong", Severity.Error);
+        }
+    }
+
+    private async Task OpenEditDialog(TaskDto taskDto)
+    {
+        var options = new DialogOptions()
+        {
+            MaxWidth = MaxWidth.Medium,
+            FullWidth = true
+        };
+
+        var parameters = new DialogParameters()
+        {
+            ["Task"] = taskDto
+        };
+
+        var dialog = await DialogService.ShowAsync<TaskEditDialog>("Edit Task", parameters, options);
+
+        var result = await dialog.Result;
+
+        if (result.Canceled)
+            return;
+
+        var success = (bool)result.Data;
+
+        if (!success)
+            return;
+
+        await GetTasks();
+    }
+
+
+    private async Task DeleteTask(TaskDto taskDto)
+    {
+        bool? result = await DialogService.ShowMessageBox(
+            "Warning",
+            "Deleting can not be undone!",
+            yesText: "Delete!", cancelText: "Cancel");
+
+        if (result == null || !result.Value)
+            return;
+
+        try
+        {
+            await TaskService.DeleteAsync(taskDto.Id);
+
+            await GetTasks();
+
+            Snackbar.Add("Successfully deleted", Severity.Success);
+
+            StateHasChanged();
+        }
+        catch (Exception e)
+        {
+            Logger.LogError(e, "Something went wrong");
+
+            Snackbar.Add("Something went wrong", Severity.Error);
+        }
+    }
+
+    private async Task CreateTask()
+    {
+        var options = new DialogOptions()
+        {
+            MaxWidth = MaxWidth.Medium,
+            FullWidth = true
+        };
+
+        var dialog = await DialogService.ShowAsync<TaskCreateDialog>("Create new one", options);
+
+        var result = await dialog.Result;
+
+        if (result.Canceled)
+            return;
+
+        var success = (bool)result.Data;
+
+        if (!success)
+            return;
+
+        await GetTasks();
+    }
+
+}

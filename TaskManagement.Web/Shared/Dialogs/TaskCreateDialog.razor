@@ -1,0 +1,68 @@
+@using TaskManagement.Domain.Enums
+@using TaskStatus = TaskManagement.Domain.Enums.TaskStatus
+
+@inject TaskService TaskService
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <DialogContent>
+        <MudGrid>
+            <MudItem xs="12">
+                <MudTextField T="string" @bind-Value="Model.Title" Margin="Margin.Dense" Label="Title" Variant="Variant.Outlined"/>
+            </MudItem>
+            <MudItem xs="12">
+                <MudTextField T="string" @bind-Value="Model.Description" Margin="Margin.Dense" Lines="3" Label="Description" Variant="Variant.Outlined"/>
+            </MudItem>
+            <MudItem xs="6">
+                <MudDatePicker T="DateTime?" Label="Due date" @bind-Date="Model.DueDate" Margin="Margin.Dense" Variant="Variant.Outlined"/>
+            </MudItem>
+            <MudItem xs="6">
+                <MudSelect T="TaskPriority" Label="Priority" @bind-Value="Model.TaskPriority" Margin="Margin.Dense" Variant="Variant.Outlined">
+                    <MudSelectItem Value="TaskPriority.Low">Low</MudSelectItem>
+                    <MudSelectItem Value="TaskPriority.Medium">Medium</MudSelectItem>
+                    <MudSelectItem Value="TaskPriority.High">High</MudSelectItem>
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="6">
+                <MudSelect T="TaskStatus" Label="Status" @bind-Value="Model.Status" Margin="Margin.Dense" Variant="Variant.Outlined">
+                    <MudSelectItem Value="TaskStatus.Open">Open</MudSelectItem>
+                    <MudSelectItem Value="TaskStatus.InProgress">InProgress</MudSelectItem>
+                    <MudSelectItem Value="TaskStatus.Completed">Completed</MudSelectItem>
+                    <MudSelectItem Value="TaskStatus.Cancelled">Cancelled</MudSelectItem>
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12">
+                <MudTextField T="string" @bind-Value="Model.Note" Label="Notes" Margin="Margin.Dense" Lines="3" Variant="Variant.Outlined"/>
+            </MudItem>
+        </MudGrid>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Submit">Save</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; }
+
+    private CreateTaskDto Model { get; set; } = new();
+
+    private async Task Submit()
+    {
+        try
+        {
+            var task = await TaskService.CreateAsync(Model);
+
+            Snackbar.Add("Successfully crated", Severity.Success);
+
+            MudDialog.Close(DialogResult.Ok(true));
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e);
+            Snackbar.Add("Something went wrong", Severity.Error);
+        }
+    }
+
+    void Cancel() => MudDialog.Cancel();
+}
